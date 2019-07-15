@@ -1,0 +1,39 @@
+{
+    "name": "ftnt-devops-ci",
+    "version": "1.0.1",
+    "description": "A Node.js project format checking and linting tool for CI practices.",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/guardhao104/ftnt-devops-ci.git"
+    },
+    "keywords": [
+        "format",
+        "lint",
+        "nodejs"
+    ],
+    "author": "Harley Guan <guardhao@gmail.com>",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/guardhao104/ftnt-devops-ci/issues"
+    },
+    "homepage": "https://github.com/guardhao104/ftnt-devops-ci#readme",
+    "bin": {
+        "format-check": "",
+        "format-fix": "",
+        "lint-check": "",
+        "lint-fix": "",
+        "check": "bin/check.js",
+        "fix": ""
+    },
+    "dependencies": {
+        "eslint": "^6.0.1",
+        "eslint-config-prettier": "^6.0.0",
+        "eslint-plugin-prettier": "^3.1.0",
+        "prettier": "^1.18.2",
+        "shelljs": "^0.8.3"
+    }
+}
