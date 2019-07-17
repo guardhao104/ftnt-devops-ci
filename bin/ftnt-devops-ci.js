@@ -8,34 +8,20 @@ const program = require('commander');
 const appInfo = require('../package.json');
 
 const relatedPath = path.normalize(`${__dirname}/..`);
-const prettierPath = `${relatedPath}/node_modules/.bin/prettier`;
+const prettierGlobalPath = `${relatedPath}/node_modules/.bin/prettier`;
+const eslintGlobalPath = `${relatedPath}/node_modules/.bin/eslint`;
+const prettierPath = fs.existsSync(prettierGlobalPath)
+    ? prettierGlobalPath
+    : path.normalize(`${__dirname}/../../.bin/prettier`);
 const prettierConfigPath = fs.existsSync(`${process.cwd()}/.prettierrc`)
     ? `${process.cwd()}/.prettierrc`
     : `${relatedPath}/.prettierrc`;
-const eslintPath = `${relatedPath}/node_modules/.bin/eslint`;
+const eslintPath = fs.existsSync(eslintGlobalPath)
+    ? eslintGlobalPath
+    : path.normalize(`${__dirname}/../../.bin/eslint`);
 const eslintConfigPath = fs.existsSync(`${process.cwd()}/.eslintrc`)
     ? `${process.cwd()}/.eslintrc`
     : `${relatedPath}/.eslintrc`;
-
-// TEST PART
-fs.existsSync(prettierPath) ? console.log("prettier exists in relative path.") :
-    console.log("ERROR: prettier not exists in relative path.");
-fs.existsSync(eslintPath) ? console.log("eslint exists in relative path.") :
-    console.log("ERROR: eslint not exists in relative path.");
-
-fs.existsSync(path.normalize(`${__dirname}/prettier`)) ? 
-    console.log("prettier exists in same folder") :
-    console.log("ERROR: prettier not exists in same folder");
-fs.existsSync(path.normalize(`${__dirname}/eslint`)) ? 
-    console.log("eslint exists in same folder") :
-    console.log("ERROR: eslint not exists in same folder");
-
-fs.existsSync(path.normalize(`${__dirname}/../../.bin/prettier`)) ? 
-    console.log("prettier exists in upper folder") :
-    console.log("ERROR: prettier not exists in upper folder");
-fs.existsSync(path.normalize(`${__dirname}/../../.bin/eslint`)) ? 
-    console.log("eslint exists in upper folder") :
-    console.log("ERROR: eslint not exists in upper folder");
 
 program.version(appInfo.version).usage('\tChecking and fixing format and linting.');
 
@@ -47,6 +33,7 @@ program
     .option('-l, --lint', 'Only check linting.')
     .option('-F, --format_ignore <path>', 'Path to prettier ignore file.')
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
+    // eslint-disable-next-line no-shadow
     .action((path, options) => {
         const no_options = !(options.format || options.lint);
         if (options.format || no_options) {
@@ -59,7 +46,7 @@ program
             }
         }
         if (options.lint || no_options) {
-            console.log("Checking linting...");
+            console.log('Checking linting...');
             if (options.lint_ignore) {
                 sh.exec(
                     `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${options.lint_ignore} ${path}`
@@ -81,6 +68,7 @@ program
     .option('-l, --lint', 'Only fix linting')
     .option('-F, --format_ignore <path>', 'Path to prettier ignore file.')
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
+    // eslint-disable-next-line no-shadow
     .action((path, options) => {
         const no_options = !(options.format || options.lint);
         if (options.format || no_options) {
@@ -93,7 +81,7 @@ program
             }
         }
         if (options.lint || no_options) {
-            console.log("Fixing linting...");
+            console.log('Fixing linting...');
             if (options.lint_ignore) {
                 sh.exec(
                     `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${options.lint_ignore} --fix ${path}`
