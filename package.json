@@ -1,6 +1,6 @@
 {
     "name": "ftnt-devops-ci",
-    "version": "0.0.3",
+    "version": "0.0.1",
     "description": "A Node.js project format checking and linting tool for CI practices.",
     "main": "index.js",
     "scripts": {
@@ -19,7 +19,7 @@
         "nodejs"
     ],
     "author": "Harley Guan <guardhao@gmail.com>",
-    "license": "ISC",
+    "license": "MIT",
     "bugs": {
         "url": "https://github.com/guardhao104/ftnt-devops-ci/issues"
     },
