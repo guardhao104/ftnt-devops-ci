@@ -17,6 +17,26 @@ const eslintConfigPath = fs.existsSync(`${process.cwd()}/.eslintrc`)
     ? `${process.cwd()}/.eslintrc`
     : `${relatedPath}/.eslintrc`;
 
+// TEST PART
+fs.existsSync(prettierPath) ? console.log("prettier exists in relative path.") :
+    console.log("ERROR: prettier not exists in relative path.");
+fs.existsSync(eslintPath) ? console.log("eslint exists in relative path.") :
+    console.log("ERROR: eslint not exists in relative path.");
+
+fs.existsSync(path.normalize(`${__dirname}/prettier`)) ? 
+    console.log("prettier exists in same folder") :
+    console.log("ERROR: prettier not exists in same folder");
+fs.existsSync(path.normalize(`${__dirname}/eslint`)) ? 
+    console.log("eslint exists in same folder") :
+    console.log("ERROR: eslint not exists in same folder");
+
+fs.existsSync(path.normalize(`${__dirname}/../../.bin/prettier`)) ? 
+    console.log("prettier exists in upper folder") :
+    console.log("ERROR: prettier not exists in upper folder");
+fs.existsSync(path.normalize(`${__dirname}/../../.bin/eslint`)) ? 
+    console.log("eslint exists in upper folder") :
+    console.log("ERROR: eslint not exists in upper folder");
+
 program.version(appInfo.version).usage('\tChecking and fixing format and linting.');
 
 program
