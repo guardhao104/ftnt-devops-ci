@@ -6,7 +6,7 @@ const sh = require('shelljs');
 const program = require('commander');
 const appInfo = require('../package.json');
 
-const relatedPath = './node_modules/ftnt-devops-ci-test';
+const relatedPath = './node_modules/ftnt-devops-ci';
 const prettierPath = `${relatedPath}/node_modules/.bin/prettier`;
 const prettierConfigPath = fs.existsSync(`${process.cwd()}/.prettierrc`)
     ? `${process.cwd()}/.prettierrc`
