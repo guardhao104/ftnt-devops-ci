@@ -4,6 +4,9 @@
     "description": "A Node.js project format checking and linting tool for CI practices.",
     "main": "index.js",
     "scripts": {
+        "format": "prettier --write",
+        "format:check": "prettier --check",
+        "lint": "eslint",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
