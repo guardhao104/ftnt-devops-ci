@@ -11,7 +11,7 @@ const prettierPath = `${process.cwd()}/node_modules/.bin/prettier`;
 const prettierConfigPath = fs.existsSync(`${process.cwd()}/.prettierrc`)
     ? `${process.cwd()}/.prettierrc`
     : `${relatedPath}/.prettierrc`;
-const eslintPath = `${relatedPath}/node_modules/.bin/eslint`;
+const eslintPath = `${process.cwd()}/node_modules/.bin/eslint`;
 const eslintConfigPath = fs.existsSync(`${process.cwd()}/.eslintrc`)
     ? `${process.cwd()}/.eslintrc`
     : `${relatedPath}/.eslintrc`;
