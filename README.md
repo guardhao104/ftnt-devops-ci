@@ -20,7 +20,8 @@ Install globally:
 
 Add scripts as follow to `package.json`:
 
-```"scripts": {
+```
+    "scripts": {
         ...
         "check": "ftnt-devops-ci check \"**/*.{js, json}\"",
         "fix": "ftnt-devops-ci fix \"**/*.{js, json}\"",
