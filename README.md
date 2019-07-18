@@ -41,10 +41,10 @@ Fix format and linting:
 
 ## Options
 
-`--format` or `-f`:     Only duel with format.
-`--lint` or `-l`:       Only duel with linting.
-`--version` or `-V`:    Get version number.
-`--help` or `-h`:       Get help document.
+- **`--format` or `-f`:**     Only duel with format.
+- **`--lint` or `-l`:**       Only duel with linting.
+- **`--version` or `-V`:**    Get version number.
+- **`--help` or `-h`:**       Get help document.
 
 ## Config Files
 
@@ -52,4 +52,6 @@ If the current directory already has `.prettierrc` or `.eslintrc` file, it/them 
 
 ## Ignore Files
 
-If the current directory already has `.prettierignore` or `.eslintignore` file, it/them will be used as ignore file when running check and fix commends. You are allowed to use `--format_ignore <path>` or `-F <path>` to specify format checking ignore file, and use `--lint_ignore <path>` or `-L <path>` to specify linting ignore file.
+If the current directory already has `.prettierignore` or `.eslintignore` file, it/them will be used as ignore file when running check and fix commends. 
+
+You are allowed to use `--format_ignore <path>` or `-F <path>` to specify format checking ignore file, and use `--lint_ignore <path>` or `-L <path>` to specify linting ignore file.
