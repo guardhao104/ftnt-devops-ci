@@ -16,12 +16,18 @@ const prettierPath = fs.existsSync(prettierGlobalPath)
 const prettierConfigPath = fs.existsSync(`${process.cwd()}/.prettierrc`)
     ? `${process.cwd()}/.prettierrc`
     : `${relatedPath}/.prettierrc`;
+const prettierIgnorePath = fs.existsSync(`${process.cwd()}/.prettierignore`)
+    ? `${process.cwd()}/.prettierignore`
+    : `${relatedPath}/.prettierignore`;
 const eslintPath = fs.existsSync(eslintGlobalPath)
     ? eslintGlobalPath
     : path.normalize(`${__dirname}/../../.bin/eslint`);
 const eslintConfigPath = fs.existsSync(`${process.cwd()}/.eslintrc`)
     ? `${process.cwd()}/.eslintrc`
     : `${relatedPath}/.eslintrc`;
+const eslintIgnorePath = fs.existsSync(`${process.cwd()}/.eslintignore`)
+    ? `${process.cwd()}/.eslintignore`
+    : `${relatedPath}/.eslintignore`;
 
 program.version(appInfo.version).usage('\tChecking and fixing format and linting.');
 
@@ -42,7 +48,9 @@ program
                     `${prettierPath} --config ${prettierConfigPath} --ignore-path ${options.format_ignore} --check ${path}`
                 );
             } else {
-                sh.exec(`${prettierPath} --config ${prettierConfigPath} --check ${path}`);
+                sh.exec(
+                    `${prettierPath} --config ${prettierConfigPath} --ignore-path ${prettierIgnorePath} --check ${path}`
+                );
             }
         }
         if (options.lint || no_options) {
@@ -52,7 +60,9 @@ program
                     `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${options.lint_ignore} ${path}`
                 );
             } else {
-                sh.exec(`${eslintPath} -c ${eslintConfigPath} ${path}`);
+                sh.exec(
+                    `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${eslintIgnorePath} ${path}`
+                );
             }
         }
     })
@@ -77,7 +87,9 @@ program
                     `${prettierPath} --config ${prettierConfigPath} --ignore-path ${options.format_ignore} --write ${path}`
                 );
             } else {
-                sh.exec(`${prettierPath} --config ${prettierConfigPath} --write ${path}`);
+                sh.exec(
+                    `${prettierPath} --config ${prettierConfigPath} --ignore-path ${prettierIgnorePath} --write ${path}`
+                );
             }
         }
         if (options.lint || no_options) {
@@ -87,7 +99,9 @@ program
                     `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${options.lint_ignore} --fix ${path}`
                 );
             } else {
-                sh.exec(`${eslintPath} -c ${eslintConfigPath} --fix ${path}`);
+                sh.exec(
+                    `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${eslintIgnorePath} --fix ${path}`
+                );
             }
         }
     })

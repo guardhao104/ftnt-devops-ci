@@ -54,6 +54,6 @@ If the current directory already has `.prettierrc` or `.eslintrc` file, it/them 
 
 ## Ignore Files
 
-If the current directory already has `.prettierignore` or `.eslintignore` file, it/them will be used as ignore file when running check and fix commends. 
+If the current directory already has `.prettierignore` or `.eslintignore` file, it/them will be used as ignore file when running check and fix commends. Otherwise, the default ignore config will be used.
 
 You are allowed to use `--format_ignore <path>` or `-F <path>` to specify format checking ignore file, and use `--lint_ignore <path>` or `-L <path>` to specify linting ignore file.
