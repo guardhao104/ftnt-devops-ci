@@ -23,8 +23,8 @@ Add scripts as follow to `package.json`:
 ```
     "scripts": {
         ...
-        "check": "ftnt-devops-ci check \"**/*.{js, json}\"",
-        "fix": "ftnt-devops-ci fix \"**/*.{js, json}\"",
+        "check": "ftnt-devops-ci check \"**/*.{js,json}\"",
+        "fix": "ftnt-devops-ci fix \"**/*.{js,json}\"",
         ...
     }
 ```
@@ -33,18 +33,20 @@ Add scripts as follow to `package.json`:
 
 Check format and linting:
 
-    $ ftnt-devops-ci check "**/*.{js, json}"
+    $ ftnt-devops-ci check "**/*.{js,json}"
 
 Fix format and linting:
 
-    $ ftnt-devops-ci fix "**/*.{js, json}"
+    $ ftnt-devops-ci fix "**/*.{js,json}"
 
 ## Options
 
-- **`--format` or `-f`:**     Only duel with format.
-- **`--lint` or `-l`:**       Only duel with linting.
-- **`--version` or `-V`:**    Get version number.
-- **`--help` or `-h`:**       Get help document.
+- **`--format` or `-f`:**           Only duel with format.
+- **`--lint` or `-l`:**             Only duel with linting.
+- **`--format_ignore` or `-F`:**    Specify prettierignore file.
+- **`--lint_ignore` or `-L`:**      Specify eslintignore file.
+- **`--version` or `-V`:**          Get version number.
+- **`--help` or `-h`:**             Get help document.
 
 ## Config Files
 
