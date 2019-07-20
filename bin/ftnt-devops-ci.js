@@ -55,27 +55,27 @@ program
     .description('Initial and create default config files in work directory.')
     .option('-J, --JavaScript', 'Initial for JavaScript project.')
     .option('-T, --TypeScript', 'Initial for TypeScript project.')
-    .action((options) => {
-        fs.copyFile(`${templatesPath}/.prettierrc`, `${process.cwd()}/.prettierrc`, (err) => {
+    .action(options => {
+        fs.copyFile(`${templatesPath}/.prettierrc`, `${process.cwd()}/.prettierrc`, err => {
             if (err) {
                 throw err;
             }
             console.log('.prettierrc is created successfully.');
         });
-        fs.copyFile(`${templatesPath}/.prettierignore`, `${process.cwd()}/.prettierignore`, (err) => {
+        fs.copyFile(`${templatesPath}/.prettierignore`, `${process.cwd()}/.prettierignore`, err => {
             if (err) {
                 throw err;
             }
             console.log('.prettierignore is created successfully.');
         });
         if (options.JavaScript) {
-            fs.copyFile(`${templatesPath}/.eslintrc`, `${process.cwd()}/.eslintrc`, (err) => {
+            fs.copyFile(`${templatesPath}/.eslintrc`, `${process.cwd()}/.eslintrc`, err => {
                 if (err) {
                     throw err;
                 }
                 console.log('.eslintrc is created successfully.');
             });
-            fs.copyFile(`${templatesPath}/.eslintignore`, `${process.cwd()}/.eslintignore`, (err) => {
+            fs.copyFile(`${templatesPath}/.eslintignore`, `${process.cwd()}/.eslintignore`, err => {
                 if (err) {
                     throw err;
                 }
@@ -83,13 +83,13 @@ program
             });
         }
         if (options.TypeScript) {
-            fs.copyFile(`${templatesPath}/tsconfig.json`, `${process.cwd()}/tsconfig.json`, (err) => {
+            fs.copyFile(`${templatesPath}/tsconfig.json`, `${process.cwd()}/tsconfig.json`, err => {
                 if (err) {
                     throw err;
                 }
                 console.log('tsconfig.json is created successfully.');
             });
-            fs.copyFile(`${templatesPath}/tslint.json`, `${process.cwd()}/tslint.json`, (err) => {
+            fs.copyFile(`${templatesPath}/tslint.json`, `${process.cwd()}/tslint.json`, err => {
                 if (err) {
                     throw err;
                 }
@@ -129,7 +129,9 @@ program
         }
         if (options.tslint || (no_options && fs.existsSync(`${process.cwd()}/tsconfig.json`))) {
             const ignoreGlob = options.tslint_ignore ? ` -e ${options.tslint_ignore}` : '';
-            sh.exec(`${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`);
+            sh.exec(
+                `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`
+            );
         }
     })
     .on('--help', () => {
@@ -164,7 +166,9 @@ program
         }
         if (options.tslint || (no_options && fs.existsSync(`${process.cwd()}/tsconfig.json`))) {
             const ignoreGlob = options.tslint_ignore ? ` -e ${options.tslint_ignore}` : '';
-            sh.exec(`${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} --fix ${path}`);
+            sh.exec(
+                `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} --fix ${path}`
+            );
         }
     })
     .on('--help', () => {
