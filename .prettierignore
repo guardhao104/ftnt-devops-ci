@@ -3,4 +3,5 @@ package-lock.json
 **/node_modules
 **/local
 **/nyc_output
+**/.nyc_output
 **/local.*
