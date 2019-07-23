@@ -6,15 +6,15 @@
         "component-class-suffix": true,
         "contextual-lifecycle": true,
         "deprecation": {
-          "severity": "warning"
+            "severity": "warning"
         },
         "directive-class-suffix": true,
         "import-blacklist": [true, "rxjs/Rx"],
         "member-ordering": [
-          true,
-          {
-            "order": ["static-field", "instance-field", "static-method", "instance-method"]
-          }
+            true,
+            {
+                "order": ["static-field", "instance-field", "static-method", "instance-method"]
+            }
         ],
         "no-arg": true,
         "no-bitwise": true,

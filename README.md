@@ -74,8 +74,6 @@ Use `--lint_ignore <path>` or `-L <path>` to specify linting ignore file.
 
 Use `--tslint_ignore <grob>` or `-T <grob>` to specify a grob pattern for tslint ignoring files.
 
-TODO list:
-1. Solve the globbing pattern problem. (**/*.js exclude current directory).
-2. Solve the prettier check cannot fail jenkins job problem.
-3. Make using . to check all files in suitable types as default for all steps.
-4. Updating tslint config.
+## TODO list:
+
+Updating tslint config.

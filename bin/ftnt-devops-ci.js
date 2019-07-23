@@ -11,10 +11,10 @@ const relatedPath = pa.normalize(`${__dirname}/..`);
 const templatesPath = `${relatedPath}/templates`;
 
 // Prettier config files path
-const prettierGlobalPath = `${relatedPath}/node_modules/.bin/prettier`;
-const prettierPath = fs.existsSync(prettierGlobalPath)
-    ? prettierGlobalPath
-    : pa.normalize(`${__dirname}/../../.bin/prettier`);
+const prettierLocalPath = pa.normalize(`${__dirname}/../../.bin/prettier`);
+const prettierPath = fs.existsSync(prettierLocalPath)
+    ? prettierLocalPath
+    : `${relatedPath}/node_modules/.bin/prettier`;
 const prettierConfigPath = fs.existsSync(`${process.cwd()}/.prettierrc`)
     ? `${process.cwd()}/.prettierrc`
     : `${relatedPath}/.prettierrc`;
@@ -23,10 +23,10 @@ const prettierIgnorePath = fs.existsSync(`${process.cwd()}/.prettierignore`)
     : `${relatedPath}/.prettierignore`;
 
 // Eslint config files path
-const eslintGlobalPath = `${relatedPath}/node_modules/.bin/eslint`;
-const eslintPath = fs.existsSync(eslintGlobalPath)
-    ? eslintGlobalPath
-    : pa.normalize(`${__dirname}/../../.bin/eslint`);
+const eslintLocalPath = pa.normalize(`${__dirname}/../../.bin/eslint`);
+const eslintPath = fs.existsSync(eslintLocalPath)
+    ? eslintLocalPath
+    : `${relatedPath}/node_modules/.bin/eslint`;
 const eslintConfigPath = fs.existsSync(`${process.cwd()}/.eslintrc`)
     ? `${process.cwd()}/.eslintrc`
     : `${relatedPath}/.eslintrc`;
@@ -35,10 +35,10 @@ const eslintIgnorePath = fs.existsSync(`${process.cwd()}/.eslintignore`)
     : `${relatedPath}/.eslintignore`;
 
 // Tslint config files path
-const tslintGlobalPath = `${relatedPath}/node_modules/.bin/tslint`;
-const tslintPath = fs.existsSync(tslintGlobalPath)
-    ? tslintGlobalPath
-    : pa.normalize(`${__dirname}/../../.bin/tslint`);
+const tslintLocalPath = pa.normalize(`${__dirname}/../../.bin/tslint`);
+const tslintPath = fs.existsSync(tslintLocalPath)
+    ? tslintLocalPath
+    : `${relatedPath}/node_modules/.bin/tslint`;
 const tslintConfigPath = fs.existsSync(`${process.cwd()}/tslint.json`)
     ? `${process.cwd()}/tslint.json`
     : `${relatedPath}/tslint.json`;
@@ -113,25 +113,43 @@ program
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
     .option('-T, --tslint_ignore <glob>', 'Glob pattern for tslint ignore.')
     .action((path, options) => {
+        path = `"${path}"`;
         const no_options = !(options.format || options.lint || options.tslint);
         if (options.format || no_options) {
             const ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
-            sh.exec(
-                `${prettierPath} --config ${prettierConfigPath} --ignore-path ${ignorePath} --check ${path}`
-            );
+            if (
+                sh.exec(
+                    `${prettierPath} --config ${prettierConfigPath} --ignore-path ${ignorePath} --check ${path}`
+                ).code !== 0
+            ) {
+                sh.echo('Format checking failed. Try this: ftnt-devops-ci fix -f "**/*.js"');
+                sh.exit(1);
+            }
         }
         if (options.lint || no_options) {
-            console.log('Checking linting...');
+            sh.echo('Checking linting...');
             const ignorePath = options.lint_ignore ? options.lint_ignore : eslintIgnorePath;
-            sh.exec(
-                `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${ignorePath} --ext .js ${path}`
-            );
+            if (
+                sh.exec(
+                    `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath} --ignore-pattern "**/*.json" ${path}`
+                ).code !== 0
+            ) {
+                sh.echo('Linting checking is failed. Try this: ftnt-devops-ci fix -l "**/*.js"');
+                sh.exit(1);
+            } else {
+                sh.echo('All matched files pass linting checks!');
+            }
         }
         if (options.tslint || (no_options && fs.existsSync(`${process.cwd()}/tsconfig.json`))) {
             const ignoreGlob = options.tslint_ignore ? ` -e ${options.tslint_ignore}` : '';
-            sh.exec(
-                `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`
-            );
+            if (
+                sh.exec(
+                    `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`
+                ).code !== 0
+            ) {
+                sh.echo('Tslint checking is failed. Try this: ftnt-devops-ci fix -t "**/*.ts"');
+                sh.exit(1);
+            }
         }
     })
     .on('--help', () => {
@@ -150,6 +168,7 @@ program
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
     .option('-T, --tslint_ignore <glob>', 'Glob pattern for tslint ignore.')
     .action((path, options) => {
+        path = `"${path}"`;
         const no_options = !(options.format || options.lint || options.tslint);
         if (options.format || no_options) {
             const ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
@@ -161,7 +180,7 @@ program
             console.log('Fixing linting...');
             const ignorePath = options.lint_ignore ? options.lint_ignore : eslintIgnorePath;
             sh.exec(
-                `${eslintPath} -c ${eslintConfigPath} --ignore-pattern ${ignorePath} --ext .js --fix ${path}`
+                `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath} --ignore-pattern "**/*.json" --fix ${path}`
             );
         }
         if (options.tslint || (no_options && fs.existsSync(`${process.cwd()}/tsconfig.json`))) {
