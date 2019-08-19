@@ -1,13 +1,13 @@
 {
     "name": "ftnt-devops-ci",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "A Node.js project format checking and linting tool for CI practices.",
     "main": "index.js",
     "scripts": {
         "format": "prettier --write \"**/*.{js,json}\"",
         "format:check": "prettier --check \"**/*.{js,json}\"",
         "lint": "eslint",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "mocha"
     },
     "repository": {
         "type": "git",
@@ -34,5 +34,8 @@
         "shelljs": "^0.8.3",
         "tslint": "^5.18.0",
         "typescript": "^3.5.3"
+    },
+    "devDependencies": {
+        "mocha": "^6.2.0"
     }
 }
