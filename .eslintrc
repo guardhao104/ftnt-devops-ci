@@ -48,9 +48,7 @@
         }],
         "linebreak-style": ["error", "unix"],
         "max-depth": ["error", 5 ],
-        "max-len": ["off", 100, {
-            "ignoreRegExpLiterals": true
-        }],
+        "max-len": "off",
         "max-params": ["error", 7],
         "new-parens": "error",
         "no-bitwise": "error",
