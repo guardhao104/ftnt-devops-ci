@@ -2,11 +2,14 @@
 'use strict';
 
 const fs = require('fs');
+const https = require('https');
 const pa = require('path');
 const sh = require('shelljs');
+const iq = require('inquirer');
 const program = require('commander');
 const appInfo = require('../package.json');
 
+const moduleRoot = pa.resolve(`${__filename}`, '../../');
 const relatedPath = pa.normalize(`${__dirname}/..`);
 const templatesPath = `${relatedPath}/templates`;
 
@@ -45,6 +48,96 @@ const tslintConfigPath = fs.existsSync(`${process.cwd()}/tslint.json`)
 const tslintProjectPath = fs.existsSync(`${process.cwd()}/tsconfig.json`)
     ? `${process.cwd()}/tsconfig.json`
     : `${relatedPath}/tsconfig.json`;
+
+const loadTextFileFromGitHub = (account, repo, filePath, branch = 'master') => {
+    return new Promise((resolve, reject)=>{
+        https.get('https://raw.githubusercontent.com/'+
+            `${account}/${repo}/${branch}/${pa.normalize(filePath)}`, (res)=>{
+                res.on('data', d => {
+                    if (res.statusCode !== 200) {
+                        throw new Error(res.statusMessage);
+                    }
+                    resolve(d.toString('utf8').trim());
+                });
+                res.on('error', e =>reject(e));
+            });
+    });
+}
+
+const fileExist = (filePath, printStdErr = true) => {
+    try {
+        return fs.readFileSync(filePath, 'utf8') && true || false;
+    } catch (error) {
+        if (printStdErr) {
+            console.error(error);
+        }
+        return false;
+    }
+};
+
+const writeFile = async (filePath, content, promptForOverwrite = true) => {
+    let question = {
+        type: 'confirm',
+        name: 'confirm',
+        message: `${filePath} already exists, overwrite it?`,
+        default: false
+    };
+
+    // check file existence and decide whether prompt for overwrite file confirmation or not
+    let answer = promptForOverwrite && fileExist(filePath) && await iq.prompt(question) || null;
+    if (!answer || answer && answer.confirm) {
+        try {
+            fs.writeFileSync(filePath, `${content}\n`);
+            return true;
+        } catch (error) {
+            console.error(error);
+            return false;
+        }
+    }
+}
+
+const update = async (options) => {
+    let [, domain, repo] =
+        new RegExp('(?<=git\\+https:\\/\\/github\\.com\\/)([^\\/]+)\\/([^\\/\\s]+).git', 'g')
+        .exec(appInfo.repository.url);
+    const [prettierrc, eslintrc, tslint] =await Promise.all([
+        loadTextFileFromGitHub(domain, repo, '.prettierrc'),
+        loadTextFileFromGitHub(domain, repo, '.eslintrc'),
+        loadTextFileFromGitHub(domain, repo, 'tslint.json'),
+    ]);
+
+    // check write file directory is global or current directory
+    let filePathFormat = pa.resolve(!!options.global && moduleRoot || process.cwd(), '.prettierrc');
+    let filePathLint = pa.resolve(!!options.global && moduleRoot || process.cwd(), '.eslintrc');
+    let filePathTsLint = pa.resolve(!!options.global && moduleRoot || process.cwd(), 'tslint.json');
+
+    let writeBoth = !options.format && !options.lint && !options.tslint;
+    let written = false;
+
+    if (writeBoth || options.format) {
+        written = await writeFile(filePathFormat, prettierrc, !options.overwrite);
+        if (written) {
+            console.log(`${filePathFormat} is now up-to-date.`);
+        }
+    }
+    if (writeBoth || options.lint) {
+        written = await writeFile(filePathLint, eslintrc, !options.overwrite);
+        if (written) {
+            console.log(`${filePathLint} is now up-to-date.`);
+        }
+    }
+    if (writeBoth || options.tslint) {
+        written = await writeFile(filePathTsLint, tslint, !options.overwrite);
+        if (written) {
+            console.log(`${filePathTsLint} is now up-to-date.`);
+        }
+    }
+}
+
+const main = async () => {
+    await program.parseAsync(process.argv);
+    console.log('program ends.');
+}
 
 // Program general information
 program.version(appInfo.version).usage('\tChecking and fixing format and linting.');
@@ -194,4 +287,18 @@ program
         console.log('\nTry this:\n  fix [options] <path>');
     });
 
-program.parse(process.argv);
+// Fix command
+program
+    .command('update')
+    .alias('u')
+    .description('Update to use the latest format checking and linting rules.')
+    .option('-s, --save', 'Save latest file(s) to the current directory. Will prompt for' +
+        ' confirmation for overwriting existing file(s) in the current directory.', true)
+    .option('-o, --overwrite', 'Overwrite existing file(s) without prompting for confirmation.', false)
+    .option('-g, --global', 'Update the files in the tool instead of in the current directory.')
+    .option('-f, --format', 'Update .prettierrc only.')
+    .option('-l, --lint', 'Update .eslintrc only.')
+    .option('-t, --tslint', 'Update .tslint.json only.')
+    .action(update);
+
+main();
