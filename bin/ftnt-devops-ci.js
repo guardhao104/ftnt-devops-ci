@@ -287,18 +287,16 @@ program
         console.log('\nTry this:\n  fix [options] <path>');
     });
 
-// Fix command
+// Update command
 program
     .command('update')
     .alias('u')
     .description('Update to use the latest format checking and linting rules.')
-    .option('-s, --save', 'Save latest file(s) to the current directory. Will prompt for' +
-        ' confirmation for overwriting existing file(s) in the current directory.', true)
     .option('-o, --overwrite', 'Overwrite existing file(s) without prompting for confirmation.', false)
     .option('-g, --global', 'Update the files in the tool instead of in the current directory.')
     .option('-f, --format', 'Update .prettierrc only.')
     .option('-l, --lint', 'Update .eslintrc only.')
-    .option('-t, --tslint', 'Update .tslint.json only.')
+    .option('-t, --tslint', 'Update tslint.json only.')
     .action(update);
 
 main();
