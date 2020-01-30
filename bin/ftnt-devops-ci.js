@@ -207,7 +207,7 @@ const askForGlobPattern = async () => {
     do {
         let question = {
             name: 'glob',
-            message: 'Enter a glob pattern you wish to use (or enter n/a to end adding):'
+            message: 'Enter a directory you wish to ignore from checking (or enter n/a to end adding):'
         };
         if(predefGlobs.length > 0 && !globs.includes(predefGlobs[0])) {
             question.default = predefGlobs[0];
@@ -227,7 +227,7 @@ const askForGlobPattern = async () => {
             globs.push(glob);
         }
 
-        let added = globs.length > 0 && 'You\'ve added glob pattern: ' +
+        let added = globs.length > 0 && 'You\'ve added directories: ' +
             `${globs.map(g=>ck.cyan(g)).join(', ')}\n` || '';
 
         if(added) {
@@ -237,7 +237,7 @@ const askForGlobPattern = async () => {
         answer = await iq.prompt({
             type: 'confirm',
             name: 'add',
-            message: 'add another glob pattern?',
+            message: 'add another directory?',
             default: false
         });
     } while (answer.add)
