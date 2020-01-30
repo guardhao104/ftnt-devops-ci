@@ -6,12 +6,15 @@ const https = require('https');
 const pa = require('path');
 const sh = require('shelljs');
 const iq = require('inquirer');
+const cj = require('comment-json');
+const ck = require('chalk');
 const program = require('commander');
 const appInfo = require('../package.json');
 
 const moduleRoot = pa.resolve(`${__filename}`, '../../');
 const relatedPath = pa.normalize(`${__dirname}/..`);
 const templatesPath = `${relatedPath}/templates`;
+const FS_STAT_IS_FILE = 'f', FS_STAT_IS_DIR = 'd';
 
 // Prettier config files path
 const prettierLocalPath = pa.normalize(`${__dirname}/../../.bin/prettier`);
@@ -64,9 +67,22 @@ const loadTextFileFromGitHub = (account, repo, filePath, branch = 'master') => {
     });
 }
 
+const readFile = (filePath, printStdErr = true) => {
+    try {
+        const file = fs.readFileSync(pa.resolve(filePath));
+        return file.toString('utf8');
+    } catch (error) {
+        if (printStdErr) {
+            console.error(error);
+        }
+        return null;
+    }
+}
+
 const fileExist = (filePath, printStdErr = true) => {
     try {
-        return fs.readFileSync(filePath, 'utf8') && true || false;
+        const stat = fs.statSync(pa.resolve(filePath));
+        return stat.isFile() && 'f' || stat.isDirectory() && 'd' || null;
     } catch (error) {
         if (printStdErr) {
             console.error(error);
@@ -84,7 +100,8 @@ const writeFile = async (filePath, content, promptForOverwrite = true) => {
     };
 
     // check file existence and decide whether prompt for overwrite file confirmation or not
-    let answer = promptForOverwrite && fileExist(filePath) && await iq.prompt(question) || null;
+    let answer = promptForOverwrite
+        &&  FS_STAT_IS_FILE === fileExist(filePath) && await iq.prompt(question) || null;
     if (!answer || answer && answer.confirm) {
         try {
             fs.writeFileSync(filePath, `${content}\n`);
@@ -131,6 +148,213 @@ const update = async (options) => {
         if (written) {
             console.log(`${filePathTsLint} is now up-to-date.`);
         }
+    }
+}
+
+const askForExtensions = async () => {
+    let predefExt = ['.js', '.json', '.ts'];
+    let fileExt = [];
+    let answer;
+
+    do {
+        let question = {
+            name: 'ext',
+            message: 'Enter one file extension you wish to format and lint ' +
+                '(or enter n/a to end adding):',
+            validate: (input)=> {
+                return input === 'n/a' || input.trim().match(/^\.[0-9a-z]+$/) && true || false;
+            }
+        };
+        if(predefExt.length > 0) {
+            question.default = predefExt[0];
+        }
+        answer = await iq.prompt(question);
+
+        if(answer.ext === 'n/a') {
+            break;
+        }
+        let ext = answer.ext.trim();
+
+        if(predefExt.includes(ext)) {
+            predefExt.splice(predefExt.indexOf(ext), 1);
+        }
+
+        if(!fileExt.includes(ext)) {
+            fileExt.push(ext);
+        }
+
+        let added = fileExt.length > 0 && 'You\'ve added extension: ' +
+        `${fileExt.map(e=>ck.cyan(e)).join(', ')}\n` || '';
+        if(added) {
+            console.info(added);
+        }
+
+        answer = await iq.prompt({
+            type: 'confirm',
+            name: 'add',
+            message: 'add another extension?',
+            default: false
+        });
+    } while (answer.add)
+    return fileExt;
+}
+
+const askForGlobPattern = async () => {
+    let predefGlobs = ['node_modules'];
+    let globs = [];
+    let answer;
+
+    do {
+        let question = {
+            name: 'glob',
+            message: 'Enter a glob pattern you wish to use (or enter n/a to end adding):'
+        };
+        if(predefGlobs.length > 0 && !globs.includes(predefGlobs[0])) {
+            question.default = predefGlobs[0];
+        }
+        answer = await iq.prompt(question);
+
+        if(answer.glob === 'n/a') {
+            break;
+        }
+        let glob = answer.glob.trim();
+
+        if(!globs.includes(glob)) {
+            predefGlobs.splice(predefGlobs.indexOf(glob), 1);
+        }
+
+        if(!globs.includes(glob)) {
+            globs.push(glob);
+        }
+
+        let added = globs.length > 0 && 'You\'ve added glob pattern: ' +
+            `${globs.map(g=>ck.cyan(g)).join(', ')}\n` || '';
+
+        if(added) {
+            console.info(added);
+        }
+
+        answer = await iq.prompt({
+            type: 'confirm',
+            name: 'add',
+            message: 'add another glob pattern?',
+            default: false
+        });
+    } while (answer.add)
+    return globs;
+}
+
+const createVsCodeTask = (extentions, globPatterns, taskType, taskLabel) => {
+    const task = {
+        label: taskLabel,
+        type: 'shell',
+        command: null,
+        problemMatcher: []
+    };
+
+    let ext;
+    if(extentions.length > 0) {
+        ext = extentions.join(',');
+        if(extentions.length > 1) {
+            ext = `{${ext}}`;
+        }
+    }
+    ext = `*${ext}`;
+
+    let glob;
+    if(globPatterns.length > 0) {
+        glob = globPatterns.join('|');
+        glob = `{**/!(${glob}),!(${glob})}`;
+    } else {
+        glob = '**'
+    }
+
+    task.command = `ftnt-devops-ci ${taskType === 'check' && 'c' || 'f'} "${glob}/${ext}"`;
+    return task;
+}
+
+const configVsCode = async (options) => {
+    const codeDir = pa.resolve('.vscode');
+    const taskFile = pa.resolve(codeDir, 'tasks.json');
+    let answer;
+    // check the vscode folder existence
+    if(FS_STAT_IS_DIR !== await fileExist(codeDir, false)) {
+        answer = await iq.prompt({
+            type: 'confirm',
+            name: 'confirm',
+            message: `.vscode folder not found in the current directory: ${process.cwd()}.\n` +
+                'Create one and continue?',
+            default: false
+        });
+        if(!answer.confirm) {
+            console.log('You can also manually create the .vscode folder and run the tool again.');
+            return false;
+        }
+        try {
+            fs.mkdirSync(codeDir);
+        } catch (error) {
+            console.error(error);
+            return false;
+        }
+    }
+    let extensions;
+    let globPatterns;
+    extensions = await askForExtensions();
+    globPatterns = await askForGlobPattern();
+    answer = await iq.prompt({
+        type: 'confirm',
+        name: 'confirm',
+        message: 'Proceed to create two tasks in vscode?',
+        default: true
+    });
+    if(!answer.confirm) {
+        return false;
+    }
+
+    // read tasks.json
+    let tasksText = readFile(taskFile);
+    let tasksJson;
+    try {
+        // parse text which might contain comments to json
+        tasksJson = cj.parse(tasksText);
+        let taskLabelCheck = `${appInfo.name}:check`;
+        let taskLabelFix = `${appInfo.name}:fix`;
+        // go over each task and look for the existence of the two we want to add
+        let foundTaskCheck = false;
+        let foundTaskFix = false;
+        if(tasksJson.tasks) {
+            tasksJson.tasks = tasksJson.tasks.map(task=>{
+                if(task.label && (task.label === taskLabelCheck || task.label === taskLabelFix)) {
+                    if(task.label === taskLabelCheck) {
+                        foundTaskCheck = true;
+                    } else if (task.label === taskLabelFix) {
+                        foundTaskFix = true;
+                    }
+                    task = createVsCodeTask(extensions, globPatterns,
+                        task.label === taskLabelCheck && 'check' || 'fix',
+                        task.label === taskLabelCheck && taskLabelCheck || taskLabelFix);
+                }
+                return task;
+            });
+        }
+        if(!foundTaskCheck) {
+            tasksJson.tasks.push(createVsCodeTask(extensions, globPatterns, 'check', taskLabelCheck));
+        }
+        if(!foundTaskFix) {
+            tasksJson.tasks.push(createVsCodeTask(extensions, globPatterns, 'fix', taskLabelFix));
+        }
+        writeFile(taskFile, cj.stringify(tasksJson, null, 4), false);
+        console.info('The following tasks are created: ' +
+            `${ck.cyan(taskLabelCheck)}, ${ck.cyan(taskLabelFix)}`);
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
+const config = async (options) => {
+    if(options.vscode) {
+        await configVsCode(options);
     }
 }
 
@@ -253,7 +477,7 @@ program
 program
     .command('fix <path>')
     .alias('f')
-    .description('Fixing files format and linting through <path>.')
+    .description('Fixing files format and linting through <path>. <path> support glob patterns defined by the glob npm.')
     .option('-f, --format', 'Only fix format')
     .option('-l, --lint', 'Only fix linting')
     .option('-t, --tslint', 'Only fix typescript files linting')
@@ -298,5 +522,13 @@ program
     .option('-l, --lint', 'Update .eslintrc only.')
     .option('-t, --tslint', 'Update tslint.json only.')
     .action(update);
+
+program
+    .command('config')
+    .description('Configure the tool in some popular IDEs. Type -h for more information.')
+    .option('--vscode', 'start a wizzard to add two VSCode tasks in the .vscode/tasks.json ' +
+        'of the current directory. This command assumes the current directory is the root of' +
+        ' a VSCode project.')
+    .action(config)
 
 main();
