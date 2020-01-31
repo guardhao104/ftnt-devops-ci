@@ -291,8 +291,49 @@ const askForGlobPattern = async () => {
     return globs;
 };
 
+const askForIgnoreFile = async () => {
+    let answer;
+    let ignoreFiles = await Promise.all(
+        ['.gitignore', '.prettierignore', '.eslintignore'].map(fileName => [
+            fileName,
+            fileExist(fileName, false) === FS_STAT_IS_FILE
+        ])
+    );
+    let ignoreFileNames = ignoreFiles.filter(f => f[1]).map(n => n[0]);
+    let ignoreArgs = [];
+    if (ignoreFileNames.length > 0) {
+        console.info('The following ignore files are detected in the current directory:');
+        console.info(ignoreFileNames.map(fileName => ck.cyan(fileName)).join('\n'));
+        answer = await iq.prompt({
+            type: 'list',
+            name: 'choice',
+            choices: [...ignoreFileNames, 'none'],
+            message: `Which ignore file you want to use for ${ck.cyan('format')} related tasks?`,
+            default: ignoreFileNames.length
+        });
+
+        if (answer.choice !== 'none') {
+            ignoreArgs.push(['format', answer.choice]);
+        }
+
+        answer = await iq.prompt({
+            type: 'list',
+            name: 'choice',
+            choices: [...ignoreFileNames, 'none'],
+            message: `Which ignore file you want to use for ${ck.cyan('lint')} related tasks?`,
+            default: ignoreFileNames.length
+        });
+
+        if (answer.choice !== 'none') {
+            ignoreArgs.push(['lint', answer.choice]);
+        }
+    }
+    return ignoreArgs;
+};
+
 const createCommand = (
     extentions,
+    ignoreFiles,
     globPatterns,
     args = [],
     modulePath = '',
@@ -306,6 +347,22 @@ const createCommand = (
         }
     }
 
+    let argIgnore = '';
+    if (ignoreFiles) {
+        argIgnore = ignoreFiles
+            .map(ignoreFile => {
+                if (ignoreFile[0] === 'format') {
+                    return `-F ${ignoreFile[1]}`;
+                } else if (ignoreFile[0] === 'lint') {
+                    return `-L ${ignoreFile[1]}`;
+                } else {
+                    return '';
+                }
+            })
+            .join(' ');
+        argIgnore = ` ${argIgnore} `;
+    }
+
     let glob;
     if (globPatterns.length > 0) {
         glob = globPatterns.join('|');
@@ -316,11 +373,12 @@ const createCommand = (
 
     const scriptPath =
         (globalModule && packageName) || `node ${pa.join(modulePath, packageName)}.js`;
-    return `${scriptPath} ${args.join(' ')} "${glob}${ext}"`;
+    return `${scriptPath} ${args.join(' ')} ${argIgnore}"${glob}${ext}"`;
 };
 
 const createVsCodeTask = (
     extentions,
+    ignoreFiles,
     globPatterns,
     taskType,
     taskLabel,
@@ -335,9 +393,23 @@ const createVsCodeTask = (
     };
 
     if (taskType === 'check') {
-        task.command = createCommand(extentions, globPatterns, ['c'], modulePath, globalModule);
+        task.command = createCommand(
+            extentions,
+            ignoreFiles,
+            globPatterns,
+            ['c'],
+            modulePath,
+            globalModule
+        );
     } else if (taskType === 'fix') {
-        task.command = createCommand(extentions, globPatterns, ['f'], modulePath, globalModule);
+        task.command = createCommand(
+            extentions,
+            ignoreFiles,
+            globPatterns,
+            ['f'],
+            modulePath,
+            globalModule
+        );
     }
 
     return task;
@@ -422,9 +494,11 @@ const configVsCode = async options => {
             return false;
         }
     }
-    let extensions;
-    let globPatterns;
+    let extensions = [];
+    let globPatterns = [];
+    let ignoreFiles = [];
     extensions = await askForExtensions();
+    ignoreFiles = await askForIgnoreFile();
     globPatterns = await askForGlobPattern();
     answer = await iq.prompt({
         type: 'confirm',
@@ -459,6 +533,7 @@ const configVsCode = async options => {
                     }
                     task = createVsCodeTask(
                         extensions,
+                        ignoreFiles,
                         globPatterns,
                         (task.label === taskLabelCheck && 'check') || 'fix',
                         (task.label === taskLabelCheck && taskLabelCheck) || taskLabelFix,
@@ -473,6 +548,7 @@ const configVsCode = async options => {
             tasksJson.tasks.push(
                 createVsCodeTask(
                     extensions,
+                    ignoreFiles,
                     globPatterns,
                     'check',
                     taskLabelCheck,
@@ -485,6 +561,7 @@ const configVsCode = async options => {
             tasksJson.tasks.push(
                 createVsCodeTask(
                     extensions,
+                    ignoreFiles,
                     globPatterns,
                     'fix',
                     taskLabelFix,
@@ -565,9 +642,11 @@ const configNpm = async options => {
         return;
     }
 
-    let extensions;
-    let globPatterns;
+    let extensions = [];
+    let globPatterns = [];
+    let ignoreFiles = [];
     extensions = await askForExtensions();
+    ignoreFiles = await askForIgnoreFile();
     globPatterns = await askForGlobPattern();
 
     // create scripts
@@ -577,6 +656,7 @@ const configNpm = async options => {
         'format:check',
         createCommand(
             extensions,
+            ignoreFiles,
             globPatterns,
             ['c', '-f'],
             modulePath,
@@ -587,6 +667,7 @@ const configNpm = async options => {
         'eslint:check',
         createCommand(
             extensions.filter(e => e !== '.ts'),
+            ignoreFiles,
             globPatterns,
             ['c', '-l'],
             modulePath,
@@ -597,6 +678,7 @@ const configNpm = async options => {
         'tslint:check',
         createCommand(
             extensions.filter(t => t !== '.js'),
+            ignoreFiles,
             globPatterns,
             ['c', '-t'],
             modulePath,
@@ -607,6 +689,7 @@ const configNpm = async options => {
         'format:fix',
         createCommand(
             extensions,
+            ignoreFiles,
             globPatterns,
             ['f', '-f'],
             modulePath,
@@ -617,6 +700,7 @@ const configNpm = async options => {
         'eslint:fix',
         createCommand(
             extensions.filter(e => e !== '.ts'),
+            ignoreFiles,
             globPatterns,
             ['f', '-l'],
             modulePath,
@@ -627,6 +711,7 @@ const configNpm = async options => {
         'tslint:fix',
         createCommand(
             extensions.filter(t => t !== '.js'),
+            ignoreFiles,
             globPatterns,
             ['f', '-t'],
             modulePath,
