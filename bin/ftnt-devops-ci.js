@@ -245,7 +245,7 @@ const askForExtensions = async () => {
 };
 
 const askForGlobPattern = async () => {
-    let predefGlobs = ['node_modules'];
+    let predefGlobs = ['node_modules','.*'];
     let globs = [];
     let answer;
 
@@ -305,19 +305,18 @@ const createCommand = (
             ext = `{${ext}}`;
         }
     }
-    ext = `*${ext}`;
 
     let glob;
     if (globPatterns.length > 0) {
         glob = globPatterns.join('|');
-        glob = `{**/!(${glob}),!(${glob})}`;
+        glob = `{*,**/!(${glob})/*}`;
     } else {
-        glob = '**';
+        glob = '**/*';
     }
 
     const scriptPath =
         (globalModule && packageName) || `node ${pa.join(modulePath, packageName)}.js`;
-    return `${scriptPath} ${args.join(' ')} "${glob}/${ext}"`;
+    return `${scriptPath} ${args.join(' ')} "${glob}${ext}"`;
 };
 
 const createVsCodeTask = (
