@@ -245,7 +245,7 @@ const askForExtensions = async () => {
 };
 
 const askForGlobPattern = async () => {
-    let predefGlobs = ['node_modules','.*'];
+    let predefGlobs = ['node_modules', '.*'];
     let globs = [];
     let answer;
 
