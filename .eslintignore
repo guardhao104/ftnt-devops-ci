@@ -4,3 +4,4 @@
 **/nyc_output
 **/local.*
 **/*.json
+**/templates

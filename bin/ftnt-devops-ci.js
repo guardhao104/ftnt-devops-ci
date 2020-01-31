@@ -37,10 +37,11 @@ const FS_STAT_IS_FILE = 'f',
     FS_STAT_IS_DIR = 'd',
     INSTALL_SCOPE_LOCAL = 'local',
     INSTALL_SCOPE_GLOBAL = 'global',
-    EXIT_CODE_NO_ERROR = 0,
     EXIT_CODE_ERROR = 1;
-const [,packageScopedName, packageScope, packageName] = modulePackageJson.repository
-    && new RegExp(`\\/(([^\\/]*)\\/(${modulePackageJson.name})).git`, 'g').exec(modulePackageJson.repository.url) || [null, null, null, null];
+const [, packageScopedName, packageScope, packageName] = (modulePackageJson.repository &&
+    new RegExp(`\\/(([^\\/]*)\\/(${modulePackageJson.name})).git`, 'g').exec(
+        modulePackageJson.repository.url
+    )) || [null, null, null, null];
 
 // Prettier config files path
 const prettierLocalPath = pa.normalize(`${__dirname}/../../.bin/prettier`);
@@ -133,18 +134,23 @@ const writeFile = async (filePath, content, promptForOverwrite = true) => {
     }
 };
 
-const isPackageInstalledScoped = async (packageName, scope) => {
+const isPackageInstalledScoped = async (pkgName, scope) => {
     return await new Promise(resolve => {
-        const command = `npm list${scope === INSTALL_SCOPE_GLOBAL && ' -g' || ''} --depth 0 ${packageName}`;
+        const command = `npm list${(scope === INSTALL_SCOPE_GLOBAL && ' -g') ||
+            ''} --depth 0 ${pkgName}`;
         sh.exec(command, { silent: true }, (code, stdout) => {
             if (code !== 0) {
-                resolve({name: null, version: null});
+                resolve({ name: null, version: null });
             }
-            const [,name, version] = new RegExp(`(${packageName})@(\\S*)`,'gmi').exec(stdout) || [null, null, null];
-            resolve({name: name, version: version});
+            const [, name, version] = new RegExp(`(${pkgName})@(\\S*)`, 'gmi').exec(stdout) || [
+                null,
+                null,
+                null
+            ];
+            resolve({ name: name, version: version });
         });
     });
-}
+};
 
 const update = async options => {
     const [prettierrc, eslintrc, tslint] = await Promise.all([
@@ -268,8 +274,7 @@ const askForGlobPattern = async () => {
         }
 
         let added =
-            (globs.length > 0 &&
-                "You've added: " + `${globs.map(g => ck.cyan(g)).join(', ')}\n`) ||
+            (globs.length > 0 && "You've added: " + `${globs.map(g => ck.cyan(g)).join(', ')}\n`) ||
             '';
 
         if (added) {
@@ -286,7 +291,13 @@ const askForGlobPattern = async () => {
     return globs;
 };
 
-const createCommand = (extentions, globPatterns, args = [], modulePath='', globalModule = true) => {
+const createCommand = (
+    extentions,
+    globPatterns,
+    args = [],
+    modulePath = '',
+    globalModule = true
+) => {
     let ext;
     if (extentions.length > 0) {
         ext = extentions.join(',');
@@ -304,11 +315,19 @@ const createCommand = (extentions, globPatterns, args = [], modulePath='', globa
         glob = '**';
     }
 
-    const scriptPath = globalModule && packageName || `node ${pa.join(modulePath, packageName)}.js`;
+    const scriptPath =
+        (globalModule && packageName) || `node ${pa.join(modulePath, packageName)}.js`;
     return `${scriptPath} ${args.join(' ')} "${glob}/${ext}"`;
-}
+};
 
-const createVsCodeTask = (extentions, globPatterns, taskType, taskLabel, modulePath, globalModule = false) => {
+const createVsCodeTask = (
+    extentions,
+    globPatterns,
+    taskType,
+    taskLabel,
+    modulePath,
+    globalModule = false
+) => {
     const task = {
         label: taskLabel,
         type: 'shell',
@@ -316,53 +335,55 @@ const createVsCodeTask = (extentions, globPatterns, taskType, taskLabel, moduleP
         problemMatcher: []
     };
 
-    if(taskType === 'check') {
-        task.command = createCommand(extentions, globPatterns, ['c']);
-    } else if(taskType === 'fix') {
-        task.command = createCommand(extentions, globPatterns, ['f']);
+    if (taskType === 'check') {
+        task.command = createCommand(extentions, globPatterns, ['c'], modulePath, globalModule);
+    } else if (taskType === 'fix') {
+        task.command = createCommand(extentions, globPatterns, ['f'], modulePath, globalModule);
     }
 
     return task;
 };
 
-const detectModule = async (options) => {
-    let globalModule = false, localModule = false;
+const detectModule = async options => {
+    let globalModule = false,
+        localModule = false;
     let modulePath = '';
     const [detectLocalModule, detectGlobalModule] = await Promise.all([
         isPackageInstalledScoped(packageName, INSTALL_SCOPE_LOCAL),
         isPackageInstalledScoped(packageName, INSTALL_SCOPE_GLOBAL)
     ]);
 
-    globalModule = detectGlobalModule && detectGlobalModule.name && true || false;
-    localModule = detectLocalModule && detectLocalModule.name && true || false;
+    globalModule = (detectGlobalModule && detectGlobalModule.name && true) || false;
+    localModule = (detectLocalModule && detectLocalModule.name && true) || false;
 
-    const precedences = options.global && [INSTALL_SCOPE_GLOBAL, INSTALL_SCOPE_LOCAL]
-        || [INSTALL_SCOPE_LOCAL, INSTALL_SCOPE_GLOBAL];
+    const precedences = (options.global && [INSTALL_SCOPE_GLOBAL, INSTALL_SCOPE_LOCAL]) || [
+        INSTALL_SCOPE_LOCAL,
+        INSTALL_SCOPE_GLOBAL
+    ];
 
     let referenceScope;
 
-    precedences.forEach((scope, index)=>{
-        if(scope === INSTALL_SCOPE_LOCAL && !referenceScope) {
+    precedences.forEach((scope, index) => {
+        if (scope === INSTALL_SCOPE_LOCAL && !referenceScope) {
             // detected locally
-            if(localModule) {
+            if (localModule) {
                 modulePath = pa.join('node_modules', packageName, 'bin');
                 console.info(`${ck.cyan(packageName)} is found in ${ck.cyan('local')} module.`);
                 // if not want to use global, can use the local scope.
                 // or if scope undetermined and no more scope to check, must use the local scope.
-                if(!options.global || index === precedences.length - 1) {
+                if (!options.global || index === precedences.length - 1) {
                     referenceScope = INSTALL_SCOPE_LOCAL;
                 }
             }
         }
-        if(scope === INSTALL_SCOPE_GLOBAL && !referenceScope) {
-
+        if (scope === INSTALL_SCOPE_GLOBAL && !referenceScope) {
             // detected globally
-            if(globalModule) {
+            if (globalModule) {
                 modulePath = ''; // can call global module without a specific path
                 console.info(`${ck.cyan(packageName)} is found in ${ck.cyan('global')} module.`);
-               // if want to use global module, can use global scope.
-               // or if scope undetermined nad no more scope to check, must use the global scope.
-                if(options.global || index === precedences.length - 1) {
+                // if want to use global module, can use global scope.
+                // or if scope undetermined nad no more scope to check, must use the global scope.
+                if (options.global || index === precedences.length - 1) {
                     referenceScope = INSTALL_SCOPE_GLOBAL;
                 }
             }
@@ -375,7 +396,7 @@ const detectModule = async (options) => {
         referenceScope: referenceScope,
         modulePath: modulePath
     };
-}
+};
 
 const configVsCode = async options => {
     const codeDir = pa.resolve('.vscode');
@@ -416,7 +437,7 @@ const configVsCode = async options => {
         return false;
     }
 
-    let {referenceScope, modulePath} = await detectModule(options);
+    let { referenceScope, modulePath } = await detectModule(options);
 
     // read tasks.json
     let tasksText = readFile(taskFile);
@@ -451,11 +472,27 @@ const configVsCode = async options => {
         }
         if (!foundTaskCheck) {
             tasksJson.tasks.push(
-                createVsCodeTask(extensions, globPatterns, 'check', taskLabelCheck, modulePath, referenceScope === INSTALL_SCOPE_GLOBAL)
+                createVsCodeTask(
+                    extensions,
+                    globPatterns,
+                    'check',
+                    taskLabelCheck,
+                    modulePath,
+                    referenceScope === INSTALL_SCOPE_GLOBAL
+                )
             );
         }
         if (!foundTaskFix) {
-            tasksJson.tasks.push(createVsCodeTask(extensions, globPatterns, 'fix', taskLabelFix, modulePath, referenceScope === INSTALL_SCOPE_GLOBAL));
+            tasksJson.tasks.push(
+                createVsCodeTask(
+                    extensions,
+                    globPatterns,
+                    'fix',
+                    taskLabelFix,
+                    modulePath,
+                    referenceScope === INSTALL_SCOPE_GLOBAL
+                )
+            );
         }
         writeFile(taskFile, cj.stringify(tasksJson, null, 4), false);
         console.info(
@@ -472,47 +509,60 @@ const configNpm = async options => {
     let answer;
 
     // check if it is a node module in the current working directory
-    if(!fileExist(pa.resolve(process.cwd(), 'package.json'), false)) {
-        console.info('It looks like the current directory isn\'t a valid node module.' +
-        ' You can run the following command to create a node module:');
+    if (!fileExist(pa.resolve(process.cwd(), 'package.json'), false)) {
+        console.info(
+            "It looks like the current directory isn't a valid node module." +
+                ' You can run the following command to create a node module:'
+        );
         console.info(ck.cyan('npm init'));
         sh.exit(EXIT_CODE_ERROR);
     }
 
-    let {referenceScope, modulePath} = await detectModule(options);
+    let { referenceScope, modulePath } = await detectModule(options);
 
-    if(referenceScope === INSTALL_SCOPE_GLOBAL) {
+    if (referenceScope === INSTALL_SCOPE_GLOBAL) {
         console.info(`Will reference ${ck.cyan(packageName)} from ${ck.cyan('global')}.`);
     } else if (referenceScope === INSTALL_SCOPE_LOCAL) {
         console.info(`Will reference ${ck.cyan(packageName)} from ${ck.cyan(modulePath)}.`);
     } else {
-        console.info(`${ck.cyan(packageName)} isn't installed in the ${ck.cyan('current')} directory nor globally. Try running one of the following commands to install it first?`);
-        console.info(`${ck.cyan('npm i ') + ck.cyan(packageScopedName)}\n${ck.cyan('npm i -g ') + ck.cyan(packageScopedName)}`);
+        console.info(
+            `${ck.cyan(packageName)} isn't installed in the ${ck.cyan(
+                'current'
+            )} directory nor globally. Try running one of the following commands to install it first?`
+        );
+        console.info(
+            `${ck.cyan('npm i ') + ck.cyan(packageScopedName)}\n${ck.cyan('npm i -g ') +
+                ck.cyan(packageScopedName)}`
+        );
     }
 
     // ask for user's consent.
     answer = await iq.prompt({
         type: 'confirm',
         name: 'confirm',
-        message:
-            `This command will update the package.json in the ${ck.cyan('current')} directory. Are you sure you want to continue?`,
+        message: `This command will update the package.json in the ${ck.cyan(
+            'current'
+        )} directory. Are you sure you want to continue?`,
         default: false
     });
-    if(!answer.confirm) {
+    if (!answer.confirm) {
         console.info('Okay! No change has been made.');
         return;
     }
 
     // ask user to ensure to save the package.json before continue
     // because any unsaved change will be ignored.
-    console.info(`You must ensure no unsaved changes in the package.json in the ${ck.cyan('current')} directory before continue. Any unsaved change will be ignored and may cause errors.`);
+    console.info(
+        `You must ensure no unsaved changes in the package.json in the ${ck.cyan(
+            'current'
+        )} directory before continue. Any unsaved change will be ignored and may cause errors.`
+    );
     answer = await iq.prompt({
         name: 'input',
-        message:
-            `Type ${ck.cyan('OK')} to procced, or ${ck.cyan('NO')} to end.`,
-        validate: (input)=>input==='OK'||input==='NO'
+        message: `Type ${ck.cyan('OK')} to procced, or ${ck.cyan('NO')} to end.`,
+        validate: input => input === 'OK' || input === 'NO'
     });
-    if(answer.input === 'NO') {
+    if (answer.input === 'NO') {
         return;
     }
 
@@ -524,43 +574,90 @@ const configNpm = async options => {
     // create scripts
     const scripts = new Map();
     // script: format
-    scripts.set('format:check',
-        createCommand(extensions, globPatterns, ['c', '-f'], modulePath, referenceScope === INSTALL_SCOPE_GLOBAL));
-    scripts.set('eslint:check',
-        createCommand(extensions.filter(e=>e!=='.ts'), globPatterns, ['c', '-l'], modulePath, referenceScope === INSTALL_SCOPE_GLOBAL));
-    scripts.set('tslint:check',
-        createCommand(extensions.filter(t=>t!=='.js'), globPatterns, ['c', '-t'], modulePath, referenceScope === INSTALL_SCOPE_GLOBAL));
-    scripts.set('format:fix',
-        createCommand(extensions, globPatterns, ['f', '-f'], modulePath, referenceScope === INSTALL_SCOPE_GLOBAL));
-    scripts.set('eslint:fix',
-        createCommand(extensions.filter(e=>e!=='.ts'), globPatterns, ['f', '-l'], modulePath, referenceScope === INSTALL_SCOPE_GLOBAL));
-    scripts.set('tslint:fix',
-        createCommand(extensions.filter(t=>t!=='.js'), globPatterns, ['f', '-t'], modulePath, referenceScope === INSTALL_SCOPE_GLOBAL));
+    scripts.set(
+        'format:check',
+        createCommand(
+            extensions,
+            globPatterns,
+            ['c', '-f'],
+            modulePath,
+            referenceScope === INSTALL_SCOPE_GLOBAL
+        )
+    );
+    scripts.set(
+        'eslint:check',
+        createCommand(
+            extensions.filter(e => e !== '.ts'),
+            globPatterns,
+            ['c', '-l'],
+            modulePath,
+            referenceScope === INSTALL_SCOPE_GLOBAL
+        )
+    );
+    scripts.set(
+        'tslint:check',
+        createCommand(
+            extensions.filter(t => t !== '.js'),
+            globPatterns,
+            ['c', '-t'],
+            modulePath,
+            referenceScope === INSTALL_SCOPE_GLOBAL
+        )
+    );
+    scripts.set(
+        'format:fix',
+        createCommand(
+            extensions,
+            globPatterns,
+            ['f', '-f'],
+            modulePath,
+            referenceScope === INSTALL_SCOPE_GLOBAL
+        )
+    );
+    scripts.set(
+        'eslint:fix',
+        createCommand(
+            extensions.filter(e => e !== '.ts'),
+            globPatterns,
+            ['f', '-l'],
+            modulePath,
+            referenceScope === INSTALL_SCOPE_GLOBAL
+        )
+    );
+    scripts.set(
+        'tslint:fix',
+        createCommand(
+            extensions.filter(t => t !== '.js'),
+            globPatterns,
+            ['f', '-t'],
+            modulePath,
+            referenceScope === INSTALL_SCOPE_GLOBAL
+        )
+    );
 
     // read pacakge.json
 
-
-    const f = async ()=> {
-        for(let [k, v] of Object.entries(appInfo.scripts)) {
-            if(scripts.has(k)) {
+    const f = async () => {
+        for (let [k, v] of Object.entries(appInfo.scripts)) {
+            if (scripts.has(k)) {
                 answer = await iq.prompt({
                     type: 'confirm',
                     name: 'confirm',
                     message: `script already exists: ${ck.cyan(k)} : ${ck.cyan(v)}\nOverwrite it?`,
                     default: false
                 });
-                if(answer.confirm) {
+                if (answer.confirm) {
                     appInfo.scripts[k] = scripts.get(k);
                     console.info(`${ck.cyan(k)} is ${ck.cyan('overwritten')}:: ${scripts.get(k)}`);
                 }
             }
         }
-    }
+    };
 
     await f();
 
-    scripts.forEach((v1, k1)=>{
-        if(!appInfo.scripts[k1]) {
+    scripts.forEach((v1, k1) => {
+        if (!appInfo.scripts[k1]) {
             appInfo.scripts[k1] = v1;
             console.info(`${ck.cyan(k1)} is ${ck.cyan('added')}:: ${v1}`);
         }
@@ -574,13 +671,13 @@ const configNpm = async options => {
         default: 1
     });
 
-    if(answer.choice === 'YES') {
+    if (answer.choice === 'YES') {
         await writeFile(appPackagePath, JSON.stringify(appInfo, null, 4), false);
         console.info('scripts are saved.');
     } else {
         console.info('No change has been saved.');
     }
-}
+};
 
 const config = async options => {
     if (options.vscode) {
@@ -666,39 +763,64 @@ program
         const no_options = !(options.format || options.lint || options.tslint);
         if (options.format || no_options) {
             const ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
-            if (
-                sh.exec(
-                    `${prettierPath} --config ${prettierConfigPath} --ignore-path ${ignorePath} --check ${path}`
-                ).code !== 0
-            ) {
-                sh.echo('Format checking failed. Try this: ftnt-devops-ci fix -f "**/*.js"');
-                sh.exit(EXIT_CODE_ERROR);
-            }
+            // TODO: should use async / await to better catch errors.
+            sh.exec(
+                `${prettierPath} --config ${prettierConfigPath} --ignore-path ${ignorePath} --check ${path}`,
+                null,
+                // eslint-disable-next-line no-unused-vars
+                (code, stdout, stderr) => {
+                    if (code !== 0) {
+                        console.error(stderr);
+                        sh.echo(
+                            'Format checking failed. Try this: ftnt-devops-ci fix -f "**/*.js"'
+                        );
+                        sh.exit(EXIT_CODE_ERROR);
+                    } else {
+                        console.log('All matched files pass format checks!');
+                    }
+                }
+            );
         }
         if (options.lint || no_options) {
             sh.echo('Checking linting...');
             const ignorePath = options.lint_ignore ? options.lint_ignore : eslintIgnorePath;
-            if (
-                sh.exec(
-                    `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath} --ignore-pattern "**/*.json" ${path}`
-                ).code !== 0
-            ) {
-                sh.echo('Linting checking is failed. Try this: ftnt-devops-ci fix -l "**/*.js"');
-                sh.exit(EXIT_CODE_ERROR);
-            } else {
-                sh.echo('All matched files pass linting checks!');
-            }
+            // TODO: should use async / await to better catch errors.
+            sh.exec(
+                `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath} --ignore-pattern "**/*.json" ${path}`,
+                null,
+                // eslint-disable-next-line no-unused-vars
+                (code, stdout, stderr) => {
+                    if (code !== 0) {
+                        console.error(stderr);
+                        sh.echo(
+                            'Linting checking is failed. Try this: ftnt-devops-ci fix -l "**/*.js"'
+                        );
+                        sh.exit(EXIT_CODE_ERROR);
+                    } else {
+                        console.log('All matched files pass linting checks!');
+                    }
+                }
+            );
         }
         if (options.tslint || (no_options && fs.existsSync(`${process.cwd()}/tsconfig.json`))) {
             const ignoreGlob = options.tslint_ignore ? ` -e ${options.tslint_ignore}` : '';
-            if (
-                sh.exec(
-                    `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`
-                ).code !== 0
-            ) {
-                sh.echo('Tslint checking is failed. Try this: ftnt-devops-ci fix -t "**/*.ts"');
-                sh.exit(EXIT_CODE_ERROR);
-            }
+            // TODO: should use async / await to better catch errors.
+            sh.exec(
+                `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`,
+                null,
+                // eslint-disable-next-line no-unused-vars
+                (code, stdout, stderr) => {
+                    if (code !== 0) {
+                        console.error(stderr);
+                        sh.echo(
+                            'Tslint checking is failed. Try this: ftnt-devops-ci fix -t "**/*.ts"'
+                        );
+                        sh.exit(EXIT_CODE_ERROR);
+                    } else {
+                        console.log('All matched files pass linting checks!');
+                    }
+                }
+            );
         }
     })
     .on('--help', () => {
@@ -755,7 +877,10 @@ program
         'Overwrite existing file(s) without prompting for confirmation.',
         false
     )
-    .option('-g, --global', 'Update the files in the tool module directory instead of in the current directory.')
+    .option(
+        '-g, --global',
+        'Update the files in the tool module directory instead of in the current directory.'
+    )
     .option('-f, --format', 'Update .prettierrc only.')
     .option('-l, --lint', 'Update .eslintrc only.')
     .option('-t, --tslint', 'Update tslint.json only.')
@@ -764,8 +889,14 @@ program
 program
     .command('config')
     .description('Configure the tool in some popular IDEs. Type -h for more information.')
-    .option('-g, --global', 'Config to use the tool installed globally. This argument has effects only when using with some other arguments.')
-    .option('--npm', 'Start a wizzard to add a few npm scripts that help you fix and check files. This argument will detect the tool installation scope automatically, and will try to reference it in precedences: node module in current directory > node module in global. Using with --global can flip the precedences.')
+    .option(
+        '-g, --global',
+        'Config to use the tool installed globally. This argument has effects only when using with some other arguments.'
+    )
+    .option(
+        '--npm',
+        'Start a wizzard to add a few npm scripts that help you fix and check files. This argument will detect the tool installation scope automatically, and will try to reference it in precedences: node module in current directory > node module in global. Using with --global can flip the precedences.'
+    )
     .option(
         '--vscode',
         'start a wizzard to add two VSCode tasks in the .vscode/tasks.json ' +
