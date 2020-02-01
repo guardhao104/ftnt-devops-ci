@@ -152,6 +152,23 @@ const isPackageInstalledScoped = async (pkgName, scope) => {
     });
 };
 
+const optionValidationCheck = options => {
+    const allOptions = [];
+    for (let o of options.options) {
+        if (o.long) {
+            allOptions.push(o.long);
+        }
+        if (o.short) {
+            allOptions.push(o.short);
+        }
+    }
+    let invalidOptions = options.options.filter(option => {
+        const flag = option.long.replace(new RegExp('-', 'g'), '');
+        return (options[flag] && allOptions.includes(options[flag])) || false;
+    });
+    return (invalidOptions.length > 0 && invalidOptions) || null;
+};
+
 const update = async options => {
     const [prettierrc, eslintrc, tslint] = await Promise.all([
         loadTextFileFromGitHub(packageScope, packageName, '.prettierrc'),
@@ -839,72 +856,116 @@ program
     .option('-f, --format', 'Only check format.')
     .option('-l, --lint', 'Only check linting.')
     .option('-t, --tslint', 'Only check typescript files linting')
+    .option('-p, --parser <name>', 'Specify a prettier parser to use. Use with --format.')
     .option('-F, --format_ignore <path>', 'Path to prettier ignore file.')
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
     .option('-T, --tslint_ignore <glob>', 'Glob pattern for tslint ignore.')
-    .action((path, options) => {
+    .action(async (path, options) => {
         path = `"${path}"`;
         const no_options = !(options.format || options.lint || options.tslint);
-        if (options.format || no_options) {
-            const ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
-            // TODO: should use async / await to better catch errors.
-            sh.exec(
-                `${prettierPath} --config ${prettierConfigPath} --ignore-path ${ignorePath} --check ${path}`,
-                null,
-                // eslint-disable-next-line no-unused-vars
-                (code, stdout, stderr) => {
-                    if (code !== 0) {
-                        console.error(stderr);
-                        sh.echo(
-                            'Format checking failed. Try this: ftnt-devops-ci fix -f "**/*.js"'
-                        );
-                        sh.exit(EXIT_CODE_ERROR);
-                    } else {
-                        console.log('All matched files pass format checks!');
-                    }
-                }
+        let ignorePath;
+        let hasError = false;
+        const invalidOptions = optionValidationCheck(options);
+        if (invalidOptions) {
+            console.error('It seems the following argument(s) have invalid input:');
+            console.error(ck.cyan(invalidOptions.map(o => o.flags).join('\n')));
+            console.error(
+                `Please check your command or run ${ck.cyan(packageName)} ${ck.cyan(
+                    'check -h'
+                )} to read usage info.`
             );
+            sh.exit(EXIT_CODE_ERROR);
+            return;
+        }
+        if (options.format || no_options) {
+            ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
+            const argParser = (options.parser && ` --parser ${options.parser}`) || '';
+            console.info(
+                `Parser is set to: ${ck.cyan((argParser === '' && 'auto') || options.parser)}`
+            );
+            hasError =
+                (await new Promise(resolve => {
+                    sh.exec(
+                        `${prettierPath} --config ${prettierConfigPath} --ignore-path ${ignorePath}${argParser} --check ${path}`,
+                        { silent: true },
+                        (code, stdout, stderr) => {
+                            if (stdout !== '') {
+                                console.info(stdout);
+                            }
+                            if (code !== 0) {
+                                console.info(stderr);
+                                console.info(
+                                    `Format checking ${ck.cyan('failed')}. ` +
+                                        `Try this: ${ck.cyan(packageName)} ${ck.cyan(
+                                            'fix -f'
+                                        )} ${path}`
+                                );
+                            } else {
+                                console.info('Formatting passed!');
+                            }
+                            resolve(code !== 0); // if error, true, else false
+                        }
+                    );
+                })) || hasError;
         }
         if (options.lint || no_options) {
-            sh.echo('Checking linting...');
-            const ignorePath = options.lint_ignore ? options.lint_ignore : eslintIgnorePath;
-            // TODO: should use async / await to better catch errors.
-            sh.exec(
-                `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath} --ignore-pattern "**/*.json" ${path}`,
-                null,
-                // eslint-disable-next-line no-unused-vars
-                (code, stdout, stderr) => {
-                    if (code !== 0) {
-                        console.error(stderr);
-                        sh.echo(
-                            'Linting checking is failed. Try this: ftnt-devops-ci fix -l "**/*.js"'
-                        );
-                        sh.exit(EXIT_CODE_ERROR);
-                    } else {
-                        console.log('All matched files pass linting checks!');
-                    }
-                }
-            );
+            ignorePath = options.lint_ignore ? options.lint_ignore : eslintIgnorePath;
+            hasError =
+                (await new Promise(resolve => {
+                    console.info('\nChecking eslinting...');
+                    sh.exec(
+                        `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath} --ignore-pattern "**/*.json" ${path}`,
+                        { silent: true },
+                        (code, stdout, stderr) => {
+                            if (stdout !== '') {
+                                console.info(stdout);
+                            }
+                            if (code !== 0) {
+                                console.error(stderr);
+                                console.info(
+                                    `Eslint checking ${ck.cyan('failed')}. ` +
+                                        `Try this: ${ck.cyan(packageName)} ${ck.cyan(
+                                            'fix -l'
+                                        )} ${path}`
+                                );
+                            } else {
+                                console.info('Eslint passed!');
+                            }
+                            resolve(code !== 0); // if error, true, else false
+                        }
+                    );
+                })) || hasError;
         }
         if (options.tslint || (no_options && fs.existsSync(`${process.cwd()}/tsconfig.json`))) {
             const ignoreGlob = options.tslint_ignore ? ` -e ${options.tslint_ignore}` : '';
-            // TODO: should use async / await to better catch errors.
-            sh.exec(
-                `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`,
-                null,
-                // eslint-disable-next-line no-unused-vars
-                (code, stdout, stderr) => {
-                    if (code !== 0) {
-                        console.error(stderr);
-                        sh.echo(
-                            'Tslint checking is failed. Try this: ftnt-devops-ci fix -t "**/*.ts"'
-                        );
-                        sh.exit(EXIT_CODE_ERROR);
-                    } else {
-                        console.log('All matched files pass linting checks!');
-                    }
-                }
-            );
+            hasError =
+                (await new Promise(resolve => {
+                    console.info('\nChecking TSlint...');
+                    sh.exec(
+                        `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} ${path}`,
+                        { silent: true },
+                        (code, stdout, stderr) => {
+                            if (stdout !== '') {
+                                console.info(stdout);
+                            }
+                            if (code !== 0) {
+                                console.error(stderr);
+                                console.error(
+                                    `Tslint checking ${ck.cyan('failed')}. ` +
+                                        `Try this: ${ck.cyan(packageName)} ${ck.cyan(
+                                            'fix -t'
+                                        )} ${path}`
+                                );
+                            } else {
+                                console.info('Tslint passed!');
+                            }
+                            resolve(code !== 0); // if error, true, else false
+                        }
+                    );
+                })) || hasError;
+        }
+        if (hasError) {
+            sh.exit(EXIT_CODE_ERROR);
         }
     })
     .on('--help', () => {
@@ -921,6 +982,7 @@ program
     .option('-f, --format', 'Only fix format')
     .option('-l, --lint', 'Only fix linting')
     .option('-t, --tslint', 'Only fix typescript files linting')
+    .option('-p, --parser <parser name>', 'Specify a prettier parser to use. Use with --format.')
     .option('-F, --format_ignore <path>', 'Path to prettier ignore file.')
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
     .option('-T, --tslint_ignore <glob>', 'Glob pattern for tslint ignore.')
@@ -929,8 +991,9 @@ program
         const no_options = !(options.format || options.lint || options.tslint);
         if (options.format || no_options) {
             const ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
+            const argParser = (options.parser && ` --parser ${options.parser}`) || '';
             sh.exec(
-                `${prettierPath} --config ${prettierConfigPath} --ignore-path ${ignorePath} --write ${path}`
+                `${prettierPath} --config ${prettierConfigPath}${argParser} --ignore-path ${ignorePath} --write ${path}`
             );
         }
         if (options.lint || no_options) {
