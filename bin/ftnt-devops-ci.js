@@ -856,10 +856,11 @@ program
     .option('-f, --format', 'Only check format.')
     .option('-l, --lint', 'Only check linting.')
     .option('-t, --tslint', 'Only check typescript files linting')
-    .option('-p, --parser <name>', 'Specify a prettier parser to use. Use with --format.')
     .option('-F, --format_ignore <path>', 'Path to prettier ignore file.')
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
     .option('-T, --tslint_ignore <glob>', 'Glob pattern for tslint ignore.')
+    .option('--parser <name>', 'Specify a prettier parser to use. Use with --format.')
+    .option('--ignore_pattern <pattern>', 'Specify an ignore pattern to use. Use with --lint.')
     .action(async (path, options) => {
         path = `"${path}"`;
         const no_options = !(options.format || options.lint || options.tslint);
@@ -965,7 +966,10 @@ program
                 })) || hasError;
         }
         if (hasError) {
+            console.info('Error was found during the checking.');
             sh.exit(EXIT_CODE_ERROR);
+        } else {
+            console.info('All checking passed.');
         }
     })
     .on('--help', () => {
@@ -982,32 +986,114 @@ program
     .option('-f, --format', 'Only fix format')
     .option('-l, --lint', 'Only fix linting')
     .option('-t, --tslint', 'Only fix typescript files linting')
-    .option('-p, --parser <parser name>', 'Specify a prettier parser to use. Use with --format.')
     .option('-F, --format_ignore <path>', 'Path to prettier ignore file.')
     .option('-L, --lint_ignore <path>', 'Path to eslint ignore file.')
     .option('-T, --tslint_ignore <glob>', 'Glob pattern for tslint ignore.')
-    .action((path, options) => {
+    .option('--parser <name>', 'Specify a prettier parser to use. Use with --format.')
+    .option('--ignore_pattern <pattern>', 'Specify an ignore pattern to use. Use with --lint.')
+    .action(async (path, options) => {
         path = `"${path}"`;
         const no_options = !(options.format || options.lint || options.tslint);
-        if (options.format || no_options) {
-            const ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
-            const argParser = (options.parser && ` --parser ${options.parser}`) || '';
-            sh.exec(
-                `${prettierPath} --config ${prettierConfigPath}${argParser} --ignore-path ${ignorePath} --write ${path}`
+        let ignorePath;
+        let hasError = false;
+        const invalidOptions = optionValidationCheck(options);
+        if (invalidOptions) {
+            console.error('It seems the following argument(s) have invalid input:');
+            console.error(ck.cyan(invalidOptions.map(o => o.flags).join('\n')));
+            console.error(
+                `Please check your command or run ${ck.cyan(packageName)} ${ck.cyan(
+                    'check -h'
+                )} to read usage info.`
             );
+            sh.exit(EXIT_CODE_ERROR);
+            return;
+        }
+        if (options.format || no_options) {
+            ignorePath = options.format_ignore ? options.format_ignore : prettierIgnorePath;
+            const argParser = (options.parser && ` --parser ${options.parser}`) || '';
+            console.info(
+                `Parser is set to: ${ck.cyan((argParser === '' && 'auto') || options.parser)}`
+            );
+            hasError =
+                (await new Promise(resolve => {
+                    sh.exec(
+                        `${prettierPath} --config ${prettierConfigPath}${argParser} --ignore-path ${ignorePath}${argParser} --write ${path}`,
+                        { silent: true },
+                        (code, stdout, stderr) => {
+                            if (stdout !== '') {
+                                console.info(stdout);
+                            }
+                            if (code !== 0) {
+                                console.info(stderr);
+                                console.info(
+                                    `Auto fixing format ${ck.cyan('failed')}. ` +
+                                        'Error is as indicated above.'
+                                );
+                            } else {
+                                console.info('Auto fixing format done!');
+                            }
+                            resolve(code !== 0); // if error, true, else false
+                        }
+                    );
+                })) || hasError;
         }
         if (options.lint || no_options) {
-            console.log('Fixing linting...');
-            const ignorePath = options.lint_ignore ? options.lint_ignore : eslintIgnorePath;
-            sh.exec(
-                `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath} --ignore-pattern "**/*.json" --fix ${path}`
-            );
+            ignorePath = options.lint_ignore ? options.lint_ignore : eslintIgnorePath;
+            const argIgnorePattern = ` --ignore-pattern ${options.ignore_pattern || '"**/*.json"'}`;
+            hasError =
+                (await new Promise(resolve => {
+                    console.log('Auto fixing eslint...');
+                    sh.exec(
+                        `${eslintPath} -c ${eslintConfigPath} --ignore-path ${ignorePath}${argIgnorePattern} --fix ${path}`,
+                        (code, stdout, stderr) => {
+                            if (stdout !== '') {
+                                console.info(stdout);
+                            }
+                            if (code !== 0) {
+                                console.error(stderr);
+                                console.info(
+                                    `Auto fixing eslint ${ck.cyan('failed')}. ` +
+                                        'Error is as indicated above.'
+                                );
+                            } else {
+                                console.info('Auto fixing eslint done!');
+                            }
+                            resolve(code !== 0); // if error, true, else false
+                        }
+                    );
+                })) || hasError;
         }
         if (options.tslint || (no_options && fs.existsSync(`${process.cwd()}/tsconfig.json`))) {
             const ignoreGlob = options.tslint_ignore ? ` -e ${options.tslint_ignore}` : '';
-            sh.exec(
-                `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} --fix ${path}`
-            );
+            console.log('Auto fixing tslint...');
+            hasError =
+                (await new Promise(resolve => {
+                    sh.exec(
+                        `${tslintPath} -c ${tslintConfigPath} -p ${tslintProjectPath}${ignoreGlob} --fix ${path}`,
+                        { silent: true },
+                        (code, stdout, stderr) => {
+                            if (stdout !== '') {
+                                console.info(stdout);
+                            }
+                            if (code !== 0) {
+                                console.error(stderr);
+                                console.error(
+                                    `Auto fixing tslint ${ck.cyan('failed')}. ` +
+                                        'Error is as indicated above.'
+                                );
+                            } else {
+                                console.info('Auto fixing tslint passed!');
+                            }
+                            resolve(code !== 0); // if error, true, else false
+                        }
+                    );
+                })) || hasError;
+        }
+        if (hasError) {
+            console.info('Error was found during the auto fixing.');
+            sh.exit(EXIT_CODE_ERROR);
+        } else {
+            console.info('All auto fixing passed.');
         }
     })
     .on('--help', () => {
