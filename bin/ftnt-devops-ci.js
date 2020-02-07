@@ -81,6 +81,7 @@ const tslintProjectPath = fs.existsSync(`${process.cwd()}/tsconfig.json`)
 
 const loadTextFileFromGitHub = (account, repo, filePath, branch = 'master') => {
     return new Promise((resolve, reject) => {
+        let buffers = [];
         https.get(
             'https://raw.githubusercontent.com/' +
                 `${account}/${repo}/${branch}/${pa.normalize(filePath)}`,
@@ -89,7 +90,20 @@ const loadTextFileFromGitHub = (account, repo, filePath, branch = 'master') => {
                     if (res.statusCode !== 200) {
                         throw new Error(res.statusMessage);
                     }
-                    resolve(d.toString('utf8').trim());
+                    buffers.push(d);
+                });
+                res.on('end', () => {
+                    if (!res.complete) {
+                        throw new Error(
+                            'The connection was terminated while the requested data ' +
+                                'was still being sent.'
+                        );
+                    }
+                    resolve(
+                        Buffer.concat(buffers)
+                            .toString('utf8')
+                            .trim()
+                    );
                 });
                 res.on('error', e => reject(e));
             }
