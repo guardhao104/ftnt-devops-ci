@@ -1,6 +1,6 @@
 {
     "name": "ftnt-devops-ci",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "A Node.js project format checking and linting tool for CI practices.",
     "main": "index.js",
     "scripts": {
